@@ -2,54 +2,28 @@ const express = require('express');
 const dotenv = require('dotenv');
 const path = require("path");
 const cors = require('cors');
+const connectToMongo = require('./config/db');
 const bodyParser = require('body-parser');
 const Contact = require('./model/Contact')
 const {body, validationResult} = require('express-validator');
 const Exceljs = require('exceljs');
 
 dotenv.config()
+connectToMongo();
 
 const app = express();
 app.use(bodyParser.json())
 app.use(cors());
 const port = 4000;
 
-app.get('/dashboard',[
-    body('name',"Enter Atleast 3 Character").isLength({min:3}),
-    body('phone',"Please provide correct phone Number").isLength({min:10,max:10}),
-    body('proof',"min 3 words").isLength({min:3}),
-    body('business',"provide right credential").isLength({min:3}),
-    body('sales',"provide right credential").isLength({min:3})
-], async (req,res)=>{
-    try {
-        // Check Validation if any error
-        const errors = validationResult(req) 
-        if(!errors.isEmpty){
-            return res.status(400).json({errors: errors.array()})
-        }
-
-        let contact = new Contact();
-        contact.name = req.body.name;
-        contact.email = req.body.email;
-        contact.phone = req.body.phone;
-        contact.proof = req.body.proof;
-        contact.business = req.body.business;
-        contact.sales = req.body.sales;
-
-        const doc = await contact.save();
-        // console.log(doc)
-        res.json(doc);
-    }
-    catch (error) {
-        console.error(error.message);
-        res.status(401).send("Internal Server Problem");
-    }
+app.get('/dashboard', async (req,res) =>{
+  const docs = await Contact.find({});
+  res.json(docs)
 })
 
-
 app.delete(`/dashboard/:id`, async(req,res) =>{
-    const deleteData = await Contact.findByIdAndDelete(req.params.id)
-    res.json(deleteData);
+  const deleteData = await Contact.findByIdAndDelete(req.params.id)
+  res.json(deleteData);
 })
 
 app.get('/getData/excel', async (req, res) => {
@@ -90,14 +64,16 @@ app.get('/getData/excel', async (req, res) => {
     }
   });
 
-app.use(express.static(path.join(__dirname,'./admin/build')))
+app.use(express.static(path.join(__dirname,'./admin/build')));
 
-app.get('*', function(_,res){
-    res.sendFile(path.join(__dirname,"./admin/build/index.html")),
-    function(err){
-        res.status(500).send(err);
-    }
-})
+app.post('*', function(_,res){
+    res.sendFile(
+        path.join(__dirname,"./admin/build/index.html"),
+        function(err){
+            res.status(500).send(err);
+        }
+    );
+});
 
 const server = app.listen(port, function(req,res){
     console.log(`The server running at http://localhost:${port}`)
